@@ -59,30 +59,24 @@ jobs:
 
     - name: Get Version
       id: version
+      shell: bash
       run: |
-        $projectPath = "${{ github.workspace }}\OpenAI-DotNet\OpenAI-DotNet.csproj"
-        
-        if (-Not (Test-Path $projectPath)) {
-          Write-Host "Project file not found at $projectPath"
+        project_path="${{ github.workspace }}/OpenAI-DotNet/OpenAI-DotNet.csproj"
+
+        if [ ! -f "$project_path" ]; then
+          echo "Project file not found at $project_path"
           exit 1
-        }
-        
-        [xml]$csproj = Get-Content $projectPath
-        
-        if ($csproj -eq $null) {
-          Write-Host "Failed to load csproj file."
+        fi
+
+        version=$(grep -oPm1 '(?<=<Version>)[^<]+' "$project_path" || true)
+
+        if [ -z "$version" ]; then
+          echo "Version not found in csproj."
           exit 1
-        }
-        
-        $version = $csproj.Project.PropertyGroup.Version
-        
-        if ([string]::IsNullOrEmpty($version)) {
-          Write-Host "Version not found in csproj."
-          exit 1
-        }
-        
-        Write-Host "Project Version: $version"
-        echo "PACKAGE_VERSION=$version" >> $GITHUB_OUTPUT
+        fi
+
+        echo "Project Version: $version"
+        echo "PACKAGE_VERSION=$version" >> "$GITHUB_OUTPUT"
 
     - name: Test Packages
       if: ${{ github.ref != 'refs/heads/main' && github.event_name != 'push' }}
@@ -162,7 +156,7 @@ jobs:
     - uses: actions/upload-artifact@v6
       if: always()
       with:
-        name: OpenAI-DotNet.${{ steps.version.outputs.PACKAGE_VERSION }}-artifacts
+        name: OpenAI-DotNet.${{ steps.version.outputs.PACKAGE_VERSION }}
         path: |
           ${{ github.workspace }}/test-results
           ${{ github.workspace }}/OpenAI-DotNet/bin/Release/OpenAI-DotNet.${{ steps.version.outputs.PACKAGE_VERSION }}.nupkg
